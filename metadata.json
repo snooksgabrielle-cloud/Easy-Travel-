@@ -1,0 +1,6 @@
+{
+  "name": "Easy Travel Lodging",
+  "description": "Luxurious, fully-furnished, and equipped midterm and corporate housing rentals for traveling professionals in Sacramento and Rancho Cordova, CA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
