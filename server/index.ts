@@ -1,6 +1,6 @@
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';
-import { listProperties, getPropertyById, createBooking, getBookings, getAdminOverview } from './lib/store.js';
+import { createBooking, getAdminOverview, getBookings, getPropertyById, listAvailableProperties, listProperties } from './lib/store.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -16,9 +16,14 @@ app.get('/api/health', async (_req: Request, res: Response) => {
   });
 });
 
-app.get('/api/properties', async (_req: Request, res: Response) => {
+app.get('/api/properties', async (req: Request, res: Response) => {
   try {
-    const properties = await listProperties();
+    const { dateFrom, dateTo } = req.query;
+    const properties = await listAvailableProperties(
+      typeof dateFrom === 'string' ? dateFrom : undefined,
+      typeof dateTo === 'string' ? dateTo : undefined,
+    );
+
     res.json({ properties, total: properties.length });
   } catch (error) {
     res.status(500).json({ message: 'Failed to load properties', error: (error as Error).message });
@@ -31,7 +36,8 @@ app.get('/api/properties/:id', async (req: Request, res: Response) => {
     if (!property) {
       return res.status(404).json({ message: 'Property not found' });
     }
-    res.json({ property });
+
+    return res.json({ property });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to load property', error: (error as Error).message });
   }
@@ -54,25 +60,6 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Missing required booking fields' });
     }
 
-    const property = await getPropertyById(propertyId);
-    if (!property) {
-      return res.status(404).json({ message: 'Property not found' });
-    }
-
-    const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      return res.status(400).json({ message: 'Dates must be valid ISO strings' });
-    }
-    if (endDate <= startDate) {
-      return res.status(400).json({ message: 'Check-out must be after check-in' });
-    }
-
-    const nights = Math.round((endDate.getTime() - startDate.getTime()) / 86400000);
-    if (nights < 5) {
-      return res.status(400).json({ message: 'Minimum stay is 5 nights' });
-    }
-
     const booking = await createBooking({
       propertyId,
       guestName,
@@ -87,7 +74,8 @@ app.post('/api/bookings', async (req: Request, res: Response) => {
 
     res.status(201).json({ booking, message: 'Booking created successfully' });
   } catch (error) {
-    res.status(400).json({ message: (error as Error).message });
+    const message = (error as Error).message;
+    res.status(400).json({ message });
   }
 });
 
@@ -98,6 +86,19 @@ app.get('/api/admin/overview', async (_req: Request, res: Response) => {
   } catch (error) {
     res.status(500).json({ message: 'Failed to generate admin overview', error: (error as Error).message });
   }
+});
+
+app.get('/api/integrations/status', async (_req: Request, res: Response) => {
+  res.json({
+    integrations: {
+      stripe: Boolean(process.env.STRIPE_SECRET_KEY),
+      paypal: Boolean(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET),
+      aweber: Boolean(process.env.AWEBER_API_KEY),
+      acuity: Boolean(process.env.ACUITY_API_KEY),
+      gmailSMTP: Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS),
+      googleMaps: Boolean(process.env.GOOGLE_MAPS_API_KEY),
+    },
+  });
 });
 
 app.use((error: Error, _req: Request, res: Response, _next: NextFunction) => {
