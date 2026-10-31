@@ -1,5 +1,17 @@
+export type Role = 'guest' | 'admin' | 'staff';
+
 export type BookingStatus = 'pending' | 'awaiting_payment' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';
 export type PaymentStatus = 'pending' | 'succeeded' | 'failed' | 'refunded';
+
+export interface UserRecord {
+  id: string;
+  email: string;
+  passwordHash: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+  isActive: boolean;
+}
 
 export interface PropertyRecord {
   id: string;
@@ -40,6 +52,8 @@ export interface BookingRecord {
   notes?: string;
   totalNights: number;
   createdAt: string;
+  paymentProvider?: 'manual' | 'stripe' | 'paypal';
+  paymentReference?: string;
 }
 
 export interface PaymentRecord {
@@ -48,11 +62,13 @@ export interface PaymentRecord {
   amount: number;
   currency: string;
   status: PaymentStatus;
-  provider: 'stripe' | 'paypal';
+  provider: 'manual' | 'stripe' | 'paypal';
+  reference?: string;
   createdAt: string;
 }
 
 export interface DatabaseState {
+  users: UserRecord[];
   properties: PropertyRecord[];
   bookings: BookingRecord[];
   payments: PaymentRecord[];
